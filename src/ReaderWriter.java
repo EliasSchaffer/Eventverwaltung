@@ -73,7 +73,7 @@ public class ReaderWriter {
 
     public boolean exportDatabaseToCSV(Connection connection) {
         // Tabellen, die exportiert werden sollen
-        String[] tables = {"User", "data.Event", "data.Ticket", "TicketType", "EventTicketCategorie", "Location", "category"};
+        String[] tables = {"User", "Event", "Ticket", "TicketType", "EventTicketCategorie", "Location", "category"};
 
         // Verzeichnis für den Export erstellen, falls es nicht existiert
         File directory = new File(EXPORT_DIRECTORY);
