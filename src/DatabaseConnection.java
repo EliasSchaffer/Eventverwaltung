@@ -1,23 +1,31 @@
+import data.LoginInfo;
+import data.User;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.*;
 import java.util.Scanner;
 
-
 public class DatabaseConnection {
 
-    private static  String URL = "jdbc:mysql://localhost:3306/eventverwaltung";
-    private static  String USERNAME = "root";
-    private static  String PASSWORD = "MYSQLPW1310&";
+    private String URL;
+    private String USERNAME;
+    private String PASSWORD;
 
-    private static Connection connection;
+    private Connection connection;
     private static Scanner scanner = new Scanner(System.in);
 
     public DatabaseConnection(LoginInfo loginInfo) {
-        URL = loginInfo.getDbLink();
-        USERNAME = loginInfo.getUsername();
-        PASSWORD = loginInfo.getPassword();
+        if (loginInfo != null) {
+            this.URL = loginInfo.getDbLink();
+            this.USERNAME = loginInfo.getUsername();
+            this.PASSWORD = loginInfo.getPassword();
+        } else {
+            this.URL = "jdbc:mysql://localhost:3306/eventverwaltung";
+            this.USERNAME = "root";
+            this.PASSWORD = "";
+        }
     }
 
     public Connection loadDatabase() throws ClassNotFoundException, SQLException {
@@ -128,8 +136,7 @@ public class DatabaseConnection {
 
             System.out.print("Passwort: ");
             String password = scanner.nextLine();
-            // Hier solltest du das Passwort eigentlich hashen:
-            String hashedPassword = hashPassword(password); // -> Dummy-Funktion oder echte Hash-Methode
+            String hashedPassword = hashPassword(password);
 
             String sql = "INSERT INTO User (firstName, lastName, email, role, hashPassword) VALUES (?, ?, ?, ?, ?)";
             PreparedStatement preparedStatement = connection.prepareStatement(sql);
@@ -168,5 +175,24 @@ public class DatabaseConnection {
         }
     }
 
+    public String getUser(String username) {
 
+        try {
+            String sql = "SELECT hashPassword FROM User Where username = ?";
+            Statement statement = connection.createStatement();
+            ResultSet resultSet = statement.executeQuery(sql);
+
+            while (resultSet.next()) {
+                return resultSet.getString("hashPassword");
+            }
+
+            resultSet.close();
+            statement.close();
+
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Auflisten der Benutzer!");
+            e.printStackTrace();
+        }
+        return "";
+    }
 }

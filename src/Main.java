@@ -1,4 +1,4 @@
-//Claude
+import data.LoginInfo;
 
 import java.sql.*;
 import java.util.Scanner;
@@ -6,23 +6,35 @@ import java.util.Scanner;
 public class Main {
 
     private static DatabaseConnection db;
+    private static Connection connection;
     private static Scanner scanner = new Scanner(System.in);
     private static ReaderWriter readerWriter = new ReaderWriter();
-    private static UI ui = new UI();
+    private static UI ui = new UI(new AuthenticationSystem(connection));
 
     public static void main(String[] args) {
+        // Überprüfen, ob data.LoginInfo bereits existiert oder erstellt werden muss
         LoginInfo login = readerWriter.loadLoginInfo();
-        if (login.getDbLink().equals("none")) {
-            login.setDbLink("jdbc:mysql://localhost:3306/login");
+
+        if (login == null) {
+            // Beim ersten Start die Login-Informationen abfragen
+            login = Settings.setupLoginInfo();
+
+            // Login-Informationen speichern
+            try {
+                readerWriter.saveLoginInfo(login.getDbLink(), login.getUsername(), login.getPassword());
+            } catch (Exception e) {
+                System.err.println("Fehler beim Speichern der Login-Informationen:");
+                e.printStackTrace();
+            }
         }
+
         db = new DatabaseConnection(login);
         try {
-            Connection connection = db.loadDatabase();
-
+            connection = db.loadDatabase();
 
             boolean running = true;
             while (running) {
-                ui.displayMenu();
+                ui.displayMainMenu();
                 int choice = getUserChoice();
 
                 switch (choice) {
@@ -37,6 +49,28 @@ public class Main {
                         break;
                     case 4:
                         db.createUser();
+                        break;
+                    case 5:
+                        // Einstellungen ändern
+                        login = Settings.changeLoginSettings(login);
+                        try {
+                            readerWriter.saveLoginInfo(login.getDbLink(), login.getUsername(), login.getPassword());
+                            System.out.println("Die neuen Einstellungen wurden gespeichert.");
+                            System.out.println("Bitte starten Sie das Programm neu, um die Änderungen zu übernehmen.");
+                        } catch (Exception e) {
+                            System.err.println("Fehler beim Speichern der Login-Informationen:");
+                            e.printStackTrace();
+                        }
+                        break;
+                    case 6:
+                        // Datenbank als CSV exportieren
+                        System.out.println("Exportiere Datenbank als CSV-Dateien...");
+                        boolean success = readerWriter.exportDatabaseToCSV(connection);
+                        if (success) {
+                            System.out.println("CSV-Export erfolgreich abgeschlossen.");
+                        } else {
+                            System.err.println("CSV-Export konnte nicht vollständig durchgeführt werden.");
+                        }
                         break;
                     case 0:
                         running = false;
@@ -63,8 +97,6 @@ public class Main {
         }
     }
 
-
-
     private static int getUserChoice() {
         while (!scanner.hasNextInt()) {
             System.out.println("Bitte eine Zahl eingeben.");
@@ -72,7 +104,4 @@ public class Main {
         }
         return scanner.nextInt();
     }
-
-    // 1. Alle Einträge der Tabelle 'category' auflisten
-
 }
