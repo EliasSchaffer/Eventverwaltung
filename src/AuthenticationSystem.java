@@ -65,6 +65,10 @@ public class AuthenticationSystem {
         }
     }
 
+    public void setCurrentUser(User currentUser) {
+        this.currentUser = currentUser;
+    }
+
     public User getCurrentUser() {
         return currentUser;
     }

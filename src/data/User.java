@@ -64,9 +64,26 @@ public class User {
         return "user".equalsIgnoreCase(role);
     }
 
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
     @Override
     public String toString() {
         return String.format("User [ID=%d, Name=%s %s, Email=%s, Role=%s]",
                 userId, firstName, lastName, email, role);
     }
+
 }

@@ -30,16 +30,16 @@ public class DatabaseConnection {
 
     public Connection loadDatabase() throws ClassNotFoundException, SQLException {
         Class.forName("com.mysql.cj.jdbc.Driver");
-
-        // Verbindung zur Datenbank herstellen
         connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
         System.out.println("Verbindung zur Datenbank hergestellt!");
         return connection;
     }
 
+    // ===== CATEGORY MANAGEMENT =====
+
     public void listAllCategories() {
         try {
-            String sql = "SELECT name FROM category";
+            String sql = "SELECT  name FROM category";
             Statement statement = connection.createStatement();
             ResultSet resultSet = statement.executeQuery(sql);
 
@@ -51,6 +51,7 @@ public class DatabaseConnection {
                 String name = resultSet.getString("name");
                 System.out.printf("%-30s\n", name);
             }
+
 
             resultSet.close();
             statement.close();
@@ -87,6 +88,35 @@ public class DatabaseConnection {
         }
     }
 
+    public boolean deleteCategory(int categoryId) {
+        try {
+            String sql = "DELETE FROM category WHERE categoryID = ?";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setInt(1, categoryId);
+
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean updateCategory(int categoryId, String newName) {
+        try {
+            String sql = "UPDATE category SET name = ? WHERE categoryID = ?";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setString(1, newName);
+            stmt.setInt(2, categoryId);
+
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // ===== USER MANAGEMENT =====
+
     public void listAllUsers() {
         try {
             String sql = "SELECT userID, firstName, lastName, email, role FROM User";
@@ -120,7 +150,6 @@ public class DatabaseConnection {
 
     public void createUser() {
         try {
-
             System.out.print("Vorname: ");
             String firstName = scanner.nextLine();
 
@@ -160,6 +189,534 @@ public class DatabaseConnection {
         }
     }
 
+    public boolean updateUserProfile(int userId, String firstName, String lastName, String email, String password) {
+        try {
+            String sql = "UPDATE User SET firstName = ?, lastName = ?, email = ?, hashPassword = ? WHERE userID = ?";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setString(1, firstName);
+            stmt.setString(2, lastName);
+            stmt.setString(3, email);
+            stmt.setString(4, hashPassword(password));
+            stmt.setInt(5, userId);
+
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean deleteUser(int userId) {
+        try {
+            String sql = "DELETE FROM User WHERE userID = ?";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setInt(1, userId);
+
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean updateUser(int userId, String firstName, String lastName, String email, String role) {
+        try {
+            String sql = "UPDATE User SET firstName = ?, lastName = ?, email = ?, role = ? WHERE userID = ?";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setString(1, firstName);
+            stmt.setString(2, lastName);
+            stmt.setString(3, email);
+            stmt.setString(4, role);
+            stmt.setInt(5, userId);
+
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // ===== AUTHENTICATION =====
+
+    public User login() {
+        System.out.println("\n===== LOGIN =====");
+        System.out.print("Email: ");
+        String email = scanner.nextLine();
+
+        System.out.print("Passwort: ");
+        String password = scanner.nextLine();
+        String hashedPassword = hashPassword(password);
+
+        User currentUser;
+
+        try {
+            String query = "SELECT userID, firstName, lastName, email, role FROM User WHERE email = ? AND hashPassword = ?";
+            PreparedStatement statement = connection.prepareStatement(query);
+            statement.setString(1, email);
+            statement.setString(2, hashedPassword);
+
+            ResultSet resultSet = statement.executeQuery();
+
+            if (resultSet.next()) {
+                int userId = resultSet.getInt("userID");
+                String firstName = resultSet.getString("firstName");
+                String lastName = resultSet.getString("lastName");
+                String role = resultSet.getString("role");
+
+                currentUser = new User(userId, firstName, lastName, email, role);
+                System.out.println("Login erfolgreich! Willkommen, " + firstName + " " + lastName + " (" + role + ")");
+                return currentUser;
+            } else {
+                System.out.println("Login fehlgeschlagen. Ungültige Email oder Passwort.");
+                return null;
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Login:");
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    // ===== LOCATION MANAGEMENT =====
+
+    public void listAllLocations() {
+        try {
+            String sql = "SELECT locationID, location, city, street, street_number FROM Location";
+            Statement statement = connection.createStatement();
+            ResultSet resultSet = statement.executeQuery(sql);
+
+            System.out.println("\n===== ALLE LOCATIONS =====");
+            System.out.printf("%-5s | %-15s | %-15s | %-15s | %-10s\n",
+                    "ID", "Name", "Stadt", "Straße", "Hausnummer");
+            System.out.println("---------------------------------------------------------------------");
+
+            while (resultSet.next()) {
+                int locationID = resultSet.getInt("locationID");
+                String land = resultSet.getString("location");
+                String stadt = resultSet.getString("city");
+                String strasse = resultSet.getString("street");
+                int nummer = resultSet.getInt("street_number");
+                System.out.printf("%-5d | %-15s | %-15s | %-15s | %-10d\n",
+                        locationID, land, stadt, strasse, nummer);
+            }
+
+            resultSet.close();
+            statement.close();
+
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Auflisten der Locations!");
+            e.printStackTrace();
+        }
+    }
+
+    public boolean createLocation(String location, String city, String street, int number) {
+        try {
+            String sql = "INSERT INTO Location (location, city, street, street_number) VALUES (?, ?, ?, ?)";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setString(1, location);
+            stmt.setString(2, city);
+            stmt.setString(3, street);
+            stmt.setInt(4, number);
+
+            int rowsAffected = stmt.executeUpdate();
+            if (rowsAffected > 0) {
+                System.out.println("Ort '" + location + "' wurde erfolgreich erstellt!");
+                return true;
+            } else {
+                System.out.println("Fehler beim Erstellen des Ortes.");
+                return false;
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Erstellen des Ortes!");
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean updateLocation(int locationId, String location, String city, String street, int number) {
+        try {
+            String sql = "UPDATE Location SET location = ?, city = ?, street = ?, street_number = ? WHERE locationID = ?";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setString(1, location);
+            stmt.setString(2, city);
+            stmt.setString(3, street);
+            stmt.setInt(4, number);
+            stmt.setInt(5, locationId);
+
+            int rowsAffected = stmt.executeUpdate();
+            if (rowsAffected > 0) {
+                System.out.println("Ort wurde erfolgreich aktualisiert!");
+                return true;
+            } else {
+                System.out.println("Fehler beim Aktualisieren des Ortes.");
+                return false;
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Bearbeiten des Ortes!");
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean deleteLocation(int locationId) {
+        try {
+            String sql = "DELETE FROM Location WHERE locationID = ?";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setInt(1, locationId);
+
+            int rowsAffected = stmt.executeUpdate();
+            if (rowsAffected > 0) {
+                System.out.println("Ort wurde erfolgreich gelöscht!");
+                return true;
+            } else {
+                System.out.println("Fehler beim Löschen des Ortes.");
+                return false;
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Löschen des Ortes!");
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // ===== EVENT MANAGEMENT =====
+
+    public void listAllEvents() {
+        try {
+            String sql = "SELECT e.eventID, e.title, e.description, e.tickets, " +
+                    "COUNT(t.ticketID) AS soldTickets " +
+                    "FROM Event e " +
+                    "LEFT JOIN Ticket t ON e.eventID = t.eventID " +
+                    "GROUP BY e.eventID, e.title, e.description, e.tickets";
+
+            Statement statement = connection.createStatement();
+            ResultSet resultSet = statement.executeQuery(sql);
+
+            System.out.println("\n===== ALLE EVENTS =====");
+            System.out.printf("%-5s | %-30s | %-20s | %-10s | %-10s\n",
+                    "ID", "Title", "Beschreibung", "Total", "Verfügbar");
+            System.out.println("-------------------------------------------------------------------------");
+
+            while (resultSet.next()) {
+                int eventID = resultSet.getInt("eventID");
+                String title = resultSet.getString("title");
+                String description = resultSet.getString("description");
+                int totalTickets = resultSet.getInt("tickets");
+                int soldTickets = resultSet.getInt("soldTickets");
+                int availableTickets = totalTickets - soldTickets;
+
+                System.out.printf("%-5d | %-30s | %-20s | %-10d | %-10d\n",
+                        eventID, title, description, totalTickets, availableTickets);
+            }
+
+            resultSet.close();
+            statement.close();
+
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Auflisten der Events!");
+            e.printStackTrace();
+        }
+    }
+
+    public boolean createEvent(String title, String description, String fromDate, String toDate,
+                               int organizerId, int categoryId, int locationId, int tickets) {
+        try {
+            String sql = "INSERT INTO Event (title, description, fromDate, toDate, organizerID, categoryID, locationID, tickets) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setString(1, title);
+            stmt.setString(2, description);
+            stmt.setString(3, fromDate);
+            stmt.setString(4, toDate);
+            stmt.setInt(5, organizerId);
+            stmt.setInt(6, categoryId);
+            stmt.setInt(7, locationId);
+            stmt.setInt(8, tickets);
+
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean deleteEvent(int eventId) {
+        try {
+            // First delete all tickets for this event
+            String deleteTickets = "DELETE FROM Ticket WHERE eventID = ?";
+            PreparedStatement ticketStmt = connection.prepareStatement(deleteTickets);
+            ticketStmt.setInt(1, eventId);
+            ticketStmt.executeUpdate();
+
+            // Then delete the event
+            String sql = "DELETE FROM Event WHERE eventID = ?";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setInt(1, eventId);
+
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public void displayOrganizerEvents(int organizerId) {
+        try {
+            String sql = "SELECT eventID, title, description, fromDate, toDate, tickets FROM Event WHERE organizerID = ?";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setInt(1, organizerId);
+            ResultSet rs = stmt.executeQuery();
+
+            System.out.println("\n===== MEINE EVENTS =====");
+            System.out.printf("%-5s | %-20s | %-15s | %-12s | %-12s | %-8s\n",
+                    "ID", "Titel", "Beschreibung", "Von", "Bis", "Tickets");
+            System.out.println("-------------------------------------------------------------------------");
+
+            while (rs.next()) {
+                int eventId = rs.getInt("eventID");
+                String title = rs.getString("title");
+                String description = rs.getString("description");
+                String fromDate = rs.getString("fromDate");
+                String toDate = rs.getString("toDate");
+                int tickets = rs.getInt("tickets");
+
+                System.out.printf("%-5d | %-20s | %-15s | %-12s | %-12s | %-8d\n",
+                        eventId, title, description, fromDate, toDate, tickets);
+            }
+
+            rs.close();
+            stmt.close();
+
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Anzeigen der Events!");
+            e.printStackTrace();
+        }
+    }
+
+    // ===== TICKET MANAGEMENT =====
+
+    public boolean bookTicket(int eventId, int userId, int typeId) {
+        try {
+            // Check if tickets available
+            String checkSql = "SELECT tickets FROM Event WHERE eventID = ?";
+            PreparedStatement checkStmt = connection.prepareStatement(checkSql);
+            checkStmt.setInt(1, eventId);
+            ResultSet rs = checkStmt.executeQuery();
+
+            if (rs.next()) {
+                int available = rs.getInt("tickets");
+                if (available <= 0) {
+                    System.out.println("Keine Tickets mehr verfügbar!");
+                    return false;
+                }
+            }
+
+            // Book ticket - korrigiert nach UML Schema
+            String sql = "INSERT INTO Ticket (userID, eventID, bookingDate, redeemed, typeID, vorName, nachName) " +
+                    "VALUES (?, ?, CURDATE(), FALSE, ?, '', '')";
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setInt(1, userId);
+            stmt.setInt(2, eventId);
+            stmt.setInt(3, typeId);
+
+            int rowsAffected = stmt.executeUpdate();
+            if (rowsAffected > 0) {
+                // Decrease available tickets
+                String updateSql = "UPDATE Event SET tickets = tickets - 1 WHERE eventID = ?";
+                PreparedStatement updateStmt = connection.prepareStatement(updateSql);
+                updateStmt.setInt(1, eventId);
+                updateStmt.executeUpdate();
+
+                return true;
+            }
+            return false;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public void displayMyTickets(int userId) {
+        try {
+            String sql = "SELECT t.ticketID, e.title, t.bookingDate, t.redeemed, tt.type " +
+                    "FROM Ticket t " +
+                    "JOIN Event e ON t.eventID = e.eventID " +
+                    "JOIN TicketType tt ON t.typeID = tt.typeID " +
+                    "WHERE t.userID = ?";
+
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setInt(1, userId);
+            ResultSet rs = stmt.executeQuery();
+
+            System.out.println("\n===== MEINE TICKETS =====");
+            System.out.printf("%-10s | %-30s | %-12s | %-10s | %-15s\n",
+                    "Ticket-ID", "Event", "Buchungsdatum", "Eingelöst", "Typ");
+            System.out.println("-------------------------------------------------------------------------");
+
+            while (rs.next()) {
+                int ticketId = rs.getInt("ticketID");
+                String eventTitle = rs.getString("title");
+                String bookingDate = rs.getString("bookingDate");
+                boolean redeemed = rs.getBoolean("redeemed");
+                String ticketType = rs.getString("type");
+
+                System.out.printf("%-10d | %-30s | %-12s | %-10s | %-15s\n",
+                        ticketId, eventTitle, bookingDate,
+                        redeemed ? "Ja" : "Nein", ticketType);
+            }
+
+            rs.close();
+            stmt.close();
+
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Anzeigen der Tickets!");
+            e.printStackTrace();
+        }
+    }
+
+    // ===== STATISTICS =====
+
+    public void displayEventsPerUser() {
+        try {
+            String sql = "SELECT u.firstName, u.lastName, COUNT(t.ticketID) as ticketCount " +
+                    "FROM User u " +
+                    "LEFT JOIN Ticket t ON u.userID = t.userID " +
+                    "GROUP BY u.userID, u.firstName, u.lastName " +
+                    "ORDER BY ticketCount DESC";
+
+            Statement stmt = connection.createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+
+            System.out.println("\n===== EVENTS PRO BENUTZER =====");
+            System.out.printf("%-20s | %-20s | %-10s\n", "Vorname", "Nachname", "Tickets");
+            System.out.println("-----------------------------------------------------");
+
+            while (rs.next()) {
+                String firstName = rs.getString("firstName");
+                String lastName = rs.getString("lastName");
+                int ticketCount = rs.getInt("ticketCount");
+
+                System.out.printf("%-20s | %-20s | %-10d\n", firstName, lastName, ticketCount);
+            }
+
+            rs.close();
+            stmt.close();
+
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Anzeigen der Statistik!");
+            e.printStackTrace();
+        }
+    }
+
+    public void displayMostBookedEvents() {
+        try {
+            String sql = "SELECT e.title, COUNT(t.ticketID) as bookingCount " +
+                    "FROM Event e " +
+                    "LEFT JOIN Ticket t ON e.eventID = t.eventID " +
+                    "GROUP BY e.eventID, e.title " +
+                    "ORDER BY bookingCount DESC " +
+                    "LIMIT 10";
+
+            Statement stmt = connection.createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+
+            System.out.println("\n===== EVENTS MIT DEN MEISTEN BUCHUNGEN =====");
+            System.out.printf("%-30s | %-10s\n", "Event-Titel", "Buchungen");
+            System.out.println("---------------------------------------------");
+
+            while (rs.next()) {
+                String title = rs.getString("title");
+                int bookingCount = rs.getInt("bookingCount");
+
+                System.out.printf("%-30s | %-10d\n", title, bookingCount);
+            }
+
+            rs.close();
+            stmt.close();
+
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Anzeigen der Statistik!");
+            e.printStackTrace();
+        }
+    }
+
+    public void displayPopularCategories() {
+        try {
+            String sql = "SELECT c.name, COUNT(t.ticketID) as ticketCount " +
+                    "FROM category c " +
+                    "LEFT JOIN Event e ON c.categoryID = e.categoryID " +
+                    "LEFT JOIN Ticket t ON e.eventID = t.eventID " +
+                    "GROUP BY c.categoryID, c.name " +
+                    "ORDER BY ticketCount DESC";
+
+            Statement stmt = connection.createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+
+            System.out.println("\n===== BELIEBTESTE KATEGORIEN =====");
+            System.out.printf("%-20s | %-10s\n", "Kategorie", "Tickets");
+            System.out.println("--------------------------------");
+
+            while (rs.next()) {
+                String categoryName = rs.getString("name");
+                int ticketCount = rs.getInt("ticketCount");
+
+                System.out.printf("%-20s | %-10d\n", categoryName, ticketCount);
+            }
+
+            rs.close();
+            stmt.close();
+
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Anzeigen der Statistik!");
+            e.printStackTrace();
+        }
+    }
+
+    // ===== PARTICIPANT LIST EXPORT =====
+
+    public void displayParticipantList(int eventId, int organizerId) {
+        try {
+            String sql = "SELECT u.firstName, u.lastName, u.email, t.bookingDate " +
+                    "FROM Ticket t " +
+                    "JOIN User u ON t.userID = u.userID " +
+                    "JOIN Event e ON t.eventID = e.eventID " +
+                    "WHERE t.eventID = ? AND e.organizerID = ?";
+
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            stmt.setInt(1, eventId);
+            stmt.setInt(2, organizerId);
+            ResultSet rs = stmt.executeQuery();
+
+            System.out.println("\n===== TEILNEHMERLISTE =====");
+            System.out.printf("%-15s | %-15s | %-25s | %-12s\n",
+                    "Vorname", "Nachname", "Email", "Buchungsdatum");
+            System.out.println("-----------------------------------------------------------------------");
+
+            while (rs.next()) {
+                String firstName = rs.getString("firstName");
+                String lastName = rs.getString("lastName");
+                String email = rs.getString("email");
+                String bookingDate = rs.getString("bookingDate");
+
+                System.out.printf("%-15s | %-15s | %-25s | %-12s\n",
+                        firstName, lastName, email, bookingDate);
+            }
+
+            rs.close();
+            stmt.close();
+
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Exportieren der Teilnehmerliste!");
+            e.printStackTrace();
+        }
+    }
+
+    // ===== UTILITY METHODS =====
+
     public String hashPassword(String password) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
@@ -174,8 +731,9 @@ public class DatabaseConnection {
         }
     }
 
+    // Legacy method - sollte nicht mehr verwendet werden
+    @Deprecated
     public String getUser(String username) {
-
         try {
             String sql = "SELECT hashPassword FROM User Where username = ?";
             Statement statement = connection.createStatement();
@@ -193,79 +751,5 @@ public class DatabaseConnection {
             e.printStackTrace();
         }
         return "";
-    }
-
-    public void listAllEvents() {
-        try {
-            String sql = "SELECT eventID, title, description, tickets FROM Event";
-            String getTicketsSQL = "SELECT COUNT(*) AS ticketCount FROM Ticket WHERE eventID = ?";
-
-            Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery(sql);
-
-            PreparedStatement preparedStatement = connection.prepareStatement(getTicketsSQL);
-
-            System.out.println("\n===== ALLE Events =====");
-            System.out.printf("%-15s | %-30s | %-20s\n", "Title", "Beschreibung", "Verfügbare Tickets");
-            System.out.println("---------------------------------------------------------------------");
-
-            while (resultSet.next()) {
-                int eventID = resultSet.getInt("eventID");
-                String title = resultSet.getString("title");
-                String description = resultSet.getString("description");
-                int totalTickets = resultSet.getInt("tickets");
-
-                preparedStatement.setInt(1, eventID);
-                ResultSet countResultSet = preparedStatement.executeQuery();
-
-                int soldTickets = 0;
-                if (countResultSet.next()) {
-                    soldTickets = countResultSet.getInt("ticketCount");
-                }
-
-                int availableTickets = totalTickets - soldTickets;
-
-                System.out.printf("%-15s | %-30s | %-20d\n", title, description, availableTickets);
-
-                countResultSet.close();
-            }
-
-            resultSet.close();
-            statement.close();
-            preparedStatement.close();
-
-        } catch (SQLException e) {
-            System.err.println("Fehler beim Auflisten der Events!");
-            e.printStackTrace();
-        }
-    }
-
-    public void listAllLocations() {
-        try {
-            String sql = "SELECT location, city, street, number FROM location";
-            Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery(sql);
-
-            System.out.println("\n===== ALLE Locations =====");
-            System.out.printf("%-15s | %-15s | %-15s | %-10s\n",
-                    "Name", "Stadt", "Straße", "Hausnummer");
-            System.out.println("---------------------------------------------------------------------");
-
-            while (resultSet.next()) {
-                String land = resultSet.getString("location");
-                String stadt = resultSet.getString("city");
-                String strasse = resultSet.getString("street");
-                int nummer = resultSet.getInt("number");
-                System.out.printf("\"%-15s | %-15s | %-15s | %-10d\n",
-                        land, stadt, strasse, nummer);
-            }
-
-            resultSet.close();
-            statement.close();
-
-        } catch (SQLException e) {
-            System.err.println("Fehler beim Auflisten der Benutzer!");
-            e.printStackTrace();
-        }
     }
 }
