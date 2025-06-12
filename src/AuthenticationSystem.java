@@ -22,8 +22,21 @@ public class AuthenticationSystem {
 
     public User login() {
         System.out.println("\n===== LOGIN =====");
-        System.out.print("Email: ");
-        String email = scanner.nextLine();
+
+        String email = "";
+        boolean validEmail = false;
+
+        // Email validation loop for login
+        while (!validEmail) {
+            System.out.print("Email: ");
+            email = scanner.nextLine();
+
+            if (isValidEmail(email)) {
+                validEmail = true;
+            } else {
+                System.out.println("Ungültige E-Mail-Adresse! Bitte versuchen Sie es erneut.");
+            }
+        }
 
         System.out.print("Passwort: ");
         String password = scanner.nextLine();
@@ -56,6 +69,12 @@ public class AuthenticationSystem {
             e.printStackTrace();
             return null;
         }
+    }
+
+    // Email validation method
+    private boolean isValidEmail(String email) {
+        String emailRegex = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$";
+        return email.matches(emailRegex);
     }
 
     public void logout() {

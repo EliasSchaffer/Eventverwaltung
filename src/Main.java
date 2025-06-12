@@ -85,7 +85,7 @@ public class Main {
                 }
                 return true;
             case 2: // Register
-                db.createUser();
+                db.createUser(false);
                 return true;
             case 3: // View events
                 db.listAllEvents();
@@ -224,7 +224,7 @@ public class Main {
                 db.listAllUsers();
                 break;
             case 2: // Create new user
-                db.createUser();
+                db.createUser(true);
                 break;
             case 3: // Edit user
                 ui.displayUserEditForm();

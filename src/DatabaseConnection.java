@@ -148,7 +148,7 @@ public class DatabaseConnection {
         }
     }
 
-    public void createUser() {
+    public void createUser(boolean isAdmin) {
         try {
             System.out.print("Vorname: ");
             String firstName = scanner.nextLine();
@@ -156,11 +156,26 @@ public class DatabaseConnection {
             System.out.print("Nachname: ");
             String lastName = scanner.nextLine();
 
-            System.out.print("Email: ");
-            String email = scanner.nextLine();
+            String email = "";
+            boolean validEmail = false;
 
-            System.out.print("Rolle (admin, organizer, user): ");
-            String role = scanner.nextLine();
+            // Email validation loop
+            while (!validEmail) {
+                System.out.print("Email: ");
+                email = scanner.nextLine();
+
+                if (isValidEmail(email)) {
+                    validEmail = true;
+                } else {
+                    System.out.println("Ungültige E-Mail-Adresse! Bitte versuchen Sie es erneut.");
+                }
+            }
+
+            String role;
+            if (isAdmin) {
+                System.out.print("Rolle (admin, organizer, user): ");
+                role = scanner.nextLine();
+            }else  role = "user";
 
             System.out.print("Passwort: ");
             String password = scanner.nextLine();
@@ -189,6 +204,12 @@ public class DatabaseConnection {
         }
     }
 
+    // Email validation method
+    private boolean isValidEmail(String email) {
+        String emailRegex = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$";
+        return email.matches(emailRegex);
+    }
+
     public boolean updateUserProfile(int userId, String firstName, String lastName, String email, String password) {
         try {
             String sql = "UPDATE User SET firstName = ?, lastName = ?, email = ?, hashPassword = ? WHERE userID = ?";
@@ -208,14 +229,59 @@ public class DatabaseConnection {
 
     public boolean deleteUser(int userId) {
         try {
-            String sql = "DELETE FROM User WHERE userID = ?";
-            PreparedStatement stmt = connection.prepareStatement(sql);
-            stmt.setInt(1, userId);
+            connection.setAutoCommit(false); // Transaction starten
 
-            return stmt.executeUpdate() > 0;
+            // 1. Alle Tickets für Events löschen, die der User organisiert hat
+            String deleteAllTicketsForUserEventsSQL =
+                    "DELETE FROM Ticket WHERE eventID IN " +
+                            "(SELECT eventID FROM Event WHERE organizerID = ?)";
+            PreparedStatement stmt1 = connection.prepareStatement(deleteAllTicketsForUserEventsSQL);
+            stmt1.setInt(1, userId);
+            stmt1.executeUpdate();
+
+            // 2. Alle Tickets löschen, die der User selbst gekauft hat (für andere Events)
+            String deleteUserTicketsSQL = "DELETE FROM Ticket WHERE userID = ?";
+            PreparedStatement stmt2 = connection.prepareStatement(deleteUserTicketsSQL);
+            stmt2.setInt(1, userId);
+            stmt2.executeUpdate();
+
+            // 3. Alle EventTicketCategorie Einträge für Events löschen, wo der User Organizer ist
+            String deleteEventTicketCategoriesSQL =
+                    "DELETE FROM EventTicketCategorie WHERE eventID IN " +
+                            "(SELECT eventID FROM Event WHERE organizerID = ?)";
+            PreparedStatement stmt3 = connection.prepareStatement(deleteEventTicketCategoriesSQL);
+            stmt3.setInt(1, userId);
+            stmt3.executeUpdate();
+
+            // 4. Alle Events löschen, wo der User Organizer ist
+            String deleteEventsSQL = "DELETE FROM Event WHERE organizerID = ?";
+            PreparedStatement stmt4 = connection.prepareStatement(deleteEventsSQL);
+            stmt4.setInt(1, userId);
+            stmt4.executeUpdate();
+
+            // 5. Schließlich den User löschen
+            String deleteUserSQL = "DELETE FROM User WHERE userID = ?";
+            PreparedStatement stmt5 = connection.prepareStatement(deleteUserSQL);
+            stmt5.setInt(1, userId);
+            int result = stmt5.executeUpdate();
+
+            connection.commit(); // Transaction bestätigen
+            return result > 0;
+
         } catch (SQLException e) {
+            try {
+                connection.rollback(); // Bei Fehler alles rückgängig machen
+            } catch (SQLException rollbackEx) {
+                rollbackEx.printStackTrace();
+            }
             e.printStackTrace();
             return false;
+        } finally {
+            try {
+                connection.setAutoCommit(true); // AutoCommit wieder aktivieren
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
 
