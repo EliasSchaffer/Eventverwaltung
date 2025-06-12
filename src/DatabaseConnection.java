@@ -675,7 +675,7 @@ public class DatabaseConnection {
         try {
             String sql = "SELECT c.name, COUNT(t.ticketID) as ticketCount " +
                     "FROM category c " +
-                    "LEFT JOIN Event e ON c.categoryID = e.categoryID " +
+                    "LEFT JOIN Event e ON c.categorie = e.categoryID " +
                     "LEFT JOIN Ticket t ON e.eventID = t.eventID " +
                     "GROUP BY c.categoryID, c.name " +
                     "ORDER BY ticketCount DESC";
