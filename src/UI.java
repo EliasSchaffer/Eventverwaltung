@@ -150,7 +150,8 @@ public class UI {
             System.out.print("Event-ID eingeben: ");
             int eventId = scanner.nextInt();
 
-            System.out.print("Ticket-Typ-ID (1 für Standard): ");
+            db.listAllTicketTypes();
+            System.out.print("Ticket-Typ-ID: ");
             int ticketTypeId = scanner.nextInt();
 
             int userId = auth.getCurrentUser().getUserId();

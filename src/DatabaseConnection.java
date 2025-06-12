@@ -282,7 +282,7 @@ public class DatabaseConnection {
 
     public void listAllLocations() {
         try {
-            String sql = "SELECT locationID, location, city, street, street_number FROM Location";
+            String sql = "SELECT locationID, location, city, street, number FROM Location";
             Statement statement = connection.createStatement();
             ResultSet resultSet = statement.executeQuery(sql);
 
@@ -296,9 +296,36 @@ public class DatabaseConnection {
                 String land = resultSet.getString("location");
                 String stadt = resultSet.getString("city");
                 String strasse = resultSet.getString("street");
-                int nummer = resultSet.getInt("street_number");
+                int nummer = resultSet.getInt("number");
                 System.out.printf("%-5d | %-15s | %-15s | %-15s | %-10d\n",
                         locationID, land, stadt, strasse, nummer);
+            }
+
+            resultSet.close();
+            statement.close();
+
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Auflisten der Locations!");
+            e.printStackTrace();
+        }
+    }
+
+    public void listAllTicketTypes() {
+        try {
+            String sql = "SELECT typeID, type FROM tickettype";
+            Statement statement = connection.createStatement();
+            ResultSet resultSet = statement.executeQuery(sql);
+
+            System.out.println("\n===== TICKET-TYPEN =====");
+            System.out.printf("%-5s | %-15s\n",
+                    "ID", "Type");
+            System.out.println("---------------------------------------------------------------------");
+
+            while (resultSet.next()) {
+                int typeID = resultSet.getInt("typeID");
+                String type = resultSet.getString("type");
+                System.out.printf("%-5d | %-15s \n",
+                        typeID, type);
             }
 
             resultSet.close();
@@ -425,7 +452,7 @@ public class DatabaseConnection {
     public boolean createEvent(String title, String description, String fromDate, String toDate,
                                int organizerId, int categoryId, int locationId, int tickets) {
         try {
-            String sql = "INSERT INTO Event (title, description, fromDate, toDate, organizerID, categoryID, locationID, tickets) " +
+            String sql = "INSERT INTO Event (title, description, fromDate, toDate, organizerID, categorie, locationID, tickets) " +
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
             PreparedStatement stmt = connection.prepareStatement(sql);
             stmt.setString(1, title);
